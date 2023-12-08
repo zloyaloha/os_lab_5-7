@@ -7,6 +7,9 @@ class TNode {
         T _data;
         TNode<T> *_left;
         TNode<T> *_right;
+        void set_data(const T &data) {
+            _data = data;
+        }
 };
 
 template <typename T>
@@ -40,6 +43,20 @@ class BinaryTree {
             }
             *cur = new TNode(x);
         }
+        TNode<T>* find_insert(T key) {
+            TNode<T> *curr = _root;
+            while (curr->_left && curr->_right && curr->_data != key) {
+                if (curr->_data > key){
+                    curr = curr->_left;
+                }
+                if (curr->_data < key) {
+                    curr = curr->_right;
+                } else {
+                    return nullptr;
+                }
+            }
+            return curr;
+        }
         void print() {
             print_tree(_root);
             std::cout << std::endl;
@@ -50,6 +67,9 @@ class BinaryTree {
                 std::cout << curr->_data << " ";
                 print_tree(curr->_right);
             }
+        }
+        TNode<T> *get_root() {
+            return _root;
         }
         TNode<T> *find(T key) {
             TNode<T> *curr = _root;
