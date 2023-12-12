@@ -43,19 +43,26 @@ class BinaryTree {
             }
             *cur = new TNode(x);
         }
-        TNode<T>* find_insert(T key) {
+        std::pair<TNode<T>*, bool> find_insert(T key) {
             TNode<T> *curr = _root;
-            while (curr->_left && curr->_right && curr->_data != key) {
+            TNode<T> *parent = nullptr;
+            std::pair<TNode<T>*, bool> res{nullptr, true};
+            while (curr && curr->_data != key) {
+                parent = curr;
                 if (curr->_data > key){
                     curr = curr->_left;
                 }
                 if (curr->_data < key) {
                     curr = curr->_right;
                 } else {
-                    return nullptr;
+                    return res;
                 }
             }
-            return curr;
+            res.first = parent;
+            if (parent->_data > key) {
+                res.second = false;
+            }
+            return res;
         }
         void print() {
             print_tree(_root);

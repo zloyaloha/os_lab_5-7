@@ -36,10 +36,9 @@ int main() {
                     exit(EXIT_FAILURE);
                 }
             } else { // если это не первый вычислительный узел
-                auto parent_node = control_node->find_insert(id);
-                auto *msg = new msg_t({create, parent_node->_data, id});
+                auto *msg = new msg_t({create, 0, id});
                 msg_t reply = *msg;
-                my_zmq::send_receive_wait(msg, reply, child.second); // связь с первым вычислительным узлом. дальше по цепочке в calc_node будем искать нужный.
+                my_zmq::send_receive_wait(msg, reply, child.second);
                 if (reply.action == success) {
                     control_node->insert(id);
                 } else {
