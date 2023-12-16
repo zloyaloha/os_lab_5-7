@@ -12,7 +12,7 @@ int main() {
     node_id_type id;
     std::pair<void *, void *> child;
     while (std::cin >> s >> id) {
-        if (s == "create") {
+        if (s == "c") {
             TNode<node_id_type> *node = control_node->find(id);
             if (node != nullptr) {
                 std::cout << "Node with this id is already exist" << std::endl;
@@ -45,11 +45,12 @@ int main() {
                     std::cout << "Error: Parent is unavailable" << std::endl;
                 }
             }
-        } else if (s == "remove") {
-            TNode<node_id_type> *node = control_node->find(id);
-            if (node != nullptr) {
-                std::cout << "Node with this id is doesn't exist" << std::endl;
-                continue;
+        } else if (s == "h") {
+            auto *msg = new msg_t({ping, 0, id});
+            msg_t reply = *msg;
+            my_zmq::send_msg_no_wait(msg, child.second);
+            while (my_zmq::test_recv(reply, child.second)) {            
+                std::cout << "uspeh " << reply.id << std::endl;
             }
         }
         control_node->print();
