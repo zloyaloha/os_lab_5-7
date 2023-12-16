@@ -51,6 +51,18 @@ namespace my_zmq {
         assert(rc == 0);
     }
     template<typename T>
+    bool recv_wait_for_time(T &reply_data, void *socket) {
+        int rc = 0;
+        zmq_msg_t reply;
+        zmq_msg_init(&reply);
+        rc = zmq_msg_recv(&reply, socket, 0);
+        if (rc == -1) {
+            return false;
+        }
+        reply_data = *(T *)zmq_msg_data(&reply);
+        return true;
+    }
+    template<typename T>
     bool receive_msg_wait(T &reply_data, void *socket) {
         int rc = 0;
         zmq_msg_t reply;

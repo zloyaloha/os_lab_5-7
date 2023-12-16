@@ -11,6 +11,7 @@ int main() {
     std::string s;
     node_id_type id;
     std::pair<void *, void *> child;
+    long long child_id = -1;
     while (std::cin >> s >> id) {
         if (s == "c") {
             TNode<node_id_type> *node = control_node->find(id);
@@ -20,6 +21,7 @@ int main() {
             }
             if (control_node->get_root()->_data == -1) { // если это первый вычислительный узел.
                 my_zmq::init_pair_socket(child.first, child.second);
+                child_id = id;
                 if (zmq_bind(child.second, ("tcp://*:" + std::to_string(PORT_BASE + id)).c_str()) != 0) {
                     perror("ZMQ_Bind");
                     exit(EXIT_FAILURE);
@@ -45,15 +47,27 @@ int main() {
                     std::cout << "Error: Parent is unavailable" << std::endl;
                 }
             }
+            control_node->print();
         } else if (s == "h") {
             auto *msg = new msg_t({ping, 0, id});
             msg_t reply = *msg;
-            my_zmq::send_msg_no_wait(msg, child.second);
-            while (my_zmq::test_recv(reply, child.second)) {            
-                std::cout << "uspeh " << reply.id << std::endl;
+            const int wait = 1000 * 4 * id;
+            int counter = 0;
+            zmq_setsockopt(child.second, ZMQ_RCVTIMEO, &wait, sizeof(int));
+            my_zmq::send_msg_wait(msg, child.second);
+            while (true) {
+                if (counter == 3) {
+                    break;
+                }
+                bool flag = my_zmq::recv_wait_for_time(reply, child.second);
+                if (reply.action == success && flag) {
+                    std::cout << "ok: " << reply.id << std::endl;
+                    counter++;
+                } else {
+                    std::cout << "unbelievable but root node is unavailable: " << child_id <<std::endl;
+                }
             }
         }
-        control_node->print();
     }
     std::cout << "Out tree:" << std::endl;
     control_node->print();

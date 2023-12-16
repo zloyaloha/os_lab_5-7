@@ -73,33 +73,49 @@ int main(int argc, char **argv) {
             }
             my_zmq::send_msg_no_wait(reply, node_parent_socket);
         } else if (token.action == ping) {
-            // std::cout << std::endl;
-            // std::cout << "Hi i am: " << node_id << std::endl;
             msg_t ping_left = msg_t({fail, node_id, node_id}), ping_right = msg_t({fail, node_id, node_id});
             auto *msg_to_parent = new msg_t({success, 0, node_id});
-            my_zmq::send_msg_no_wait(msg_to_parent, node_parent_socket);
+            const int wait = 1000 * token.id * 4;
+            for (int i = 0; i < 3; i++) {
+                my_zmq::send_msg_wait(msg_to_parent, node_parent_socket);
+                sleep(token.id);
+            }
             if (has_left) {
-                std::cout << "Go left in " << node_id << std::endl;
+                int counter = 0;
                 auto *token_left = new msg_t({ping, node_id, token.id});
-                my_zmq::send_msg_no_wait(token_left, left.second);
+                zmq_setsockopt(left.second, ZMQ_RCVTIMEO, &wait, sizeof(int));
+                my_zmq::send_msg_wait(token_left, left.second);
+                while (true) {
+                    if (counter == 3) {
+                        break;
+                    }
+                    bool flag_l = my_zmq::recv_wait_for_time(ping_left, left.second);
+                    if (ping_left.action == success && flag_l) {
+                        std::cout << "ok: " << ping_left.id << std::endl;
+                        counter++;
+                    } else {
+                        std::cout << "unbelievable but left node is unavailable: " << left_id <<std::endl;
+                    }
+                }
             }
             if (has_right) {
-                std::cout << "Go right in " << node_id << std::endl;
+                int counter = 0;
                 auto *token_right = new msg_t({ping, node_id, token.id});
-                my_zmq::send_msg_no_wait(token_right, right.second);
-            }
-            if (has_left) {
-                while (my_zmq::test_recv(ping_left, left.second)) {
-                    std::cout << "ok" << ping_left.id;         
-                    // my_zmq::send_msg_no_wait(&ping_left, node_parent_socket);
+                zmq_setsockopt(right.second, ZMQ_RCVTIMEO, &wait, sizeof(int));
+                my_zmq::send_msg_wait(token_right, right.second);
+                while (true) {
+                    if (counter == 3) {
+                        break;
+                    }
+                    bool flag_r = my_zmq::recv_wait_for_time(ping_right, right.second);
+                    if (ping_right.action == success && flag_r) {
+                        std::cout << "ok: " << ping_right.id << std::endl;
+                        counter++;
+                    } else {
+                        std::cout << "unbelievable but right node is unavailable: " << right_id <<std::endl;
+                    }
                 }
             }
-            if (has_right) {
-                while (my_zmq::test_recv(ping_right, right.second)) {   
-                    // my_zmq::send_msg_no_wait(&ping_right, node_parent_socket);
-                }
-            }
-            // std::cout << std::endl;
         }
     }
 }
