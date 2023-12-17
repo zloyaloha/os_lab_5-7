@@ -27,6 +27,7 @@ void make_node(std::pair<void *, void *> &contex_socket, bool &flag, long long &
 }
 
 int main(int argc, char **argv) {
+    int sum = 0;
     if (argc != 2) {
         exit(EXIT_FAILURE);
     }
@@ -115,6 +116,24 @@ int main(int argc, char **argv) {
                         std::cout << "unbelievable but right node is unavailable: " << right_id <<std::endl;
                     }
                 }
+            }
+        } else if (token.action == exec_add) {
+            if (node_id == token.id) {
+                if (token.parent_id == -1) {
+                    std::cout << "Summary equal to " << sum << std::endl;
+                    sum = 0;
+                    continue;
+                }
+                sum += token.parent_id;
+            }
+            if (node_id > token.id && has_left) {
+                auto *token_left = new msg_t({exec_add, token.parent_id, token.id});
+                msg_t reply_left = *reply;
+                my_zmq::send_msg_no_wait(token_left, left.second);
+            } else if (node_id < token.id && has_right) {
+                auto *token_right = new msg_t({exec_add, token.parent_id, token.id});
+                msg_t reply_right = *reply;
+                my_zmq::send_msg_no_wait(token_right, right.second);
             }
         }
     }

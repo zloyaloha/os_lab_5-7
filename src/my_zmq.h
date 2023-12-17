@@ -25,8 +25,8 @@ const int WAIT_TIME = 1000;
 const char SENTINEL = '$';
 
 struct msg_t {
-  actions_t action;
-  long long parent_id, id;
+    actions_t action;
+    long long parent_id, id;
 };
 
 namespace my_zmq {

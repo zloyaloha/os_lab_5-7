@@ -67,6 +67,22 @@ int main() {
                     std::cout << "unbelievable but root node is unavailable: " << child_id <<std::endl;
                 }
             }
+        } else if (s == "e") {
+            auto *terminate_msg = new msg_t({exec_add, -1, id});
+            int num;
+            std::vector<int> buf;
+            while (true) {
+                std::cin >> num; 
+                if (num == -1) {
+                    break;
+                }
+                buf.push_back(num);
+            }
+            for (int num: buf){
+                auto *msg_to_child = new msg_t({exec_add, num, id});
+                my_zmq::send_msg_wait(msg_to_child, child.second);
+            }
+            my_zmq::send_msg_wait(terminate_msg, child.second);
         }
     }
     std::cout << "Out tree:" << std::endl;
