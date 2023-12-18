@@ -49,20 +49,19 @@ class BinaryTree {
             std::pair<TNode<T>*, bool> res{nullptr, true};
             while (curr && curr->_data != key) {
                 parent = curr;
-                if (curr->_data > key){
+                if (curr->_data > key)
                     curr = curr->_left;
-                }
-                if (curr->_data < key) {
+                else
                     curr = curr->_right;
-                } else {
-                    return res;
-                }
+            }
+            if (curr == nullptr) {
+                res.first = nullptr;
+                res.second = false;
+                return res; 
             }
             res.first = parent;
-            if (parent->_data > key) {
-                res.second = false;
-            }
             return res;
+            
         }
         void print() {
             print_tree(_root);
@@ -87,6 +86,34 @@ class BinaryTree {
                     curr = curr->_right;
             }
             return curr;
+        }
+        TNode<T>* deleteSubtree(TNode<T> *root, T id) {
+            if (root == nullptr) {
+                return nullptr;
+            }
+
+            if (root->_data == id) {
+                // Удаляем все поддерево, начиная с корневого узла root
+                deleteEntireSubtree(root);
+                return nullptr;
+            }
+
+            root->_left = deleteSubtree(root->_left, id);
+            if (root->_left == nullptr) {
+                root->_right = deleteSubtree(root->_right, id);
+            }
+
+            return root;
+        }
+        void deleteEntireSubtree(TNode<T>* root) {
+            if (root == nullptr) {
+                return;
+            }
+            deleteEntireSubtree(root->_left);
+            deleteEntireSubtree(root->_right);
+            std::cout << root << std::endl;
+            delete root;
+            root = nullptr;
         }
         void erase(T key) {
             TNode<T> * curr = _root;

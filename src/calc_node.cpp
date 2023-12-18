@@ -45,10 +45,10 @@ int main(int argc, char **argv) {
     while (awake) {
         msg_t token({fail, 0, 0});
         my_zmq::receive_msg(token, node_parent_socket);
+        // std::cout << "INFO ABOUT NODE: left_id = " << left_id << " right_id = " << right_id << " node_id = " << node_id << std::endl;
         auto *reply = new msg_t({fail, node_id, node_id});
         if (token.action == create) {
             if (node_id > token.id && has_left) {
-                std::cout << "Go left in " << node_id << std::endl;
                 auto *token_left = new msg_t(token);
                 msg_t reply_left = *reply;
                 my_zmq::send_receive_wait(token_left, reply_left, left.second);
@@ -56,7 +56,6 @@ int main(int argc, char **argv) {
                     *reply = reply_left;
                 }
             } else if (node_id < token.id && has_right) {
-                std::cout << "Go right in " << node_id << std::endl;
                 auto *token_right = new msg_t(token);
                 msg_t reply_right = *reply;
                 my_zmq::send_receive_wait(token_right, reply_right, right.second);
@@ -65,12 +64,12 @@ int main(int argc, char **argv) {
                 }   
             }
             if (has_left == false && node_id > token.id) {
-                std::cout << "Making left in " << node_id << std::endl;
                 make_node(left, has_left, token.id, token, reply);
+                left_id = token.id;
             }
             if (has_right == false && node_id < token.id) {
-                std::cout << "Making right in "<< node_id << std::endl;
                 make_node(right, has_right, token.id, token, reply);
+                right_id = token.id;
             }
             my_zmq::send_msg_no_wait(reply, node_parent_socket);
         } else if (token.action == ping) {
@@ -98,6 +97,7 @@ int main(int argc, char **argv) {
                         std::cout << "unbelievable but left node is unavailable: " << left_id <<std::endl;
                     }
                 }
+                zmq_setsockopt(left.second, ZMQ_RCVTIMEO, &WAIT_TIME, sizeof(int));
             }
             if (has_right) {
                 int counter = 0;
@@ -116,6 +116,7 @@ int main(int argc, char **argv) {
                         std::cout << "unbelievable but right node is unavailable: " << right_id <<std::endl;
                     }
                 }
+                zmq_setsockopt(right.second, ZMQ_RCVTIMEO, &WAIT_TIME, sizeof(int));
             }
         } else if (token.action == exec_add) {
             if (node_id == token.id) {
@@ -134,6 +135,121 @@ int main(int argc, char **argv) {
                 auto *token_right = new msg_t({exec_add, token.parent_id, token.id});
                 msg_t reply_right = *reply;
                 my_zmq::send_msg_no_wait(token_right, right.second);
+            }
+        } else if (token.action == destroy) {
+            if (node_id == token.parent_id) {
+                msg_t reply_right = *reply;
+                msg_t reply_left = *reply;
+                if (token.id == left_id) {
+                    auto *token_left = new msg_t(token);
+                    my_zmq::send_receive_wait(token_left, reply_left, left.second);
+                    if (reply_left.action == success) {
+                        zmq_close(left.second);
+                        zmq_ctx_destroy(left.first);
+                        left.first = left.second = nullptr;
+                        left_id = -1;
+                        has_left = false;
+                        reply_left.action == success;
+                        my_zmq::send_msg_no_wait(&reply_left, node_parent_socket);
+                    }
+                } else {
+                    auto *token_right = new msg_t(token);
+                    my_zmq::send_receive_wait(token_right, reply_right, right.second);
+                    if (reply_right.action == success) {
+                        zmq_close(right.second);
+                        zmq_ctx_destroy(right.first);
+                        right.first = right.second = nullptr;
+                        right_id = -1;
+                        has_right = false;
+                        reply_right.action == success;
+                        my_zmq::send_msg_no_wait(&reply_right, node_parent_socket);
+                    }  
+                }
+                wait(NULL);
+                continue;
+            }
+            if (token.id == node_id) {
+                auto *msg_to_parent = new msg_t({success, 0, node_id});
+                if (has_left) {
+                    auto *token_left = new msg_t({destroy_child, token.parent_id, token.id});
+                    msg_t reply_left = msg_t({fail, 0, 0});
+                    my_zmq::send_receive_wait(token_left, reply_left, left.second);
+                    if (reply_left.action == success) {
+                        zmq_close(left.second);
+                        zmq_ctx_destroy(left.first);
+                        left.first = left.second = nullptr;
+                        left_id = -1;
+                        has_left = false;
+                    }
+                }
+                if (has_right) {
+                    auto *token_right = new msg_t({destroy_child, token.parent_id, token.id});
+                    msg_t reply_right = *reply;
+                    my_zmq::send_receive_wait(token_right, reply_right, right.second);
+                    if (reply_right.action == success) {
+                        zmq_close(right.second);
+                        zmq_ctx_destroy(right.first);
+                        right.first = right.second = nullptr;
+                        right_id = -1;
+                        has_right = false;
+                    }  
+                }
+                my_zmq::send_msg_no_wait(msg_to_parent, node_parent_socket);
+                exit(3);
+            }
+            msg_t reply_right = *reply;
+            msg_t reply_left = *reply;
+            if (node_id > token.id && has_left) {
+                auto *token_left = new msg_t(token);
+                my_zmq::send_receive_wait(token_left, reply_left, left.second);
+                if (reply_left.action == success) {
+                    my_zmq::send_msg_no_wait(&reply_left, node_parent_socket);
+                }
+            } else if (node_id < token.id && has_right) {
+                auto *token_right = new msg_t(token);
+                my_zmq::send_receive_wait(token_right, reply_right, right.second);
+                if (reply_right.action == success) {
+                    my_zmq::send_msg_no_wait(&reply_right, node_parent_socket);
+                }   
+            }
+        } else if (token.action == destroy_child) {
+            msg_t reply_left = *reply;
+            msg_t reply_right = *reply;
+            if (has_left) {
+                auto *token_left = new msg_t({destroy_child, node_id, token.id});
+                my_zmq::send_receive_wait(token_left, reply_left, left.second);
+            } else {
+                reply_left.action == success;
+            }
+            if (has_right) {
+                auto *token_right = new msg_t({destroy_child, node_id, token.id});
+                my_zmq::send_receive_wait(token_right, reply_right, right.second);
+            } else {
+                reply_left.action == success;
+            }
+            if (!has_right && !has_left) {
+                auto *reply_to_parent = new msg_t({success, token.parent_id, node_id});
+                my_zmq::send_msg_no_wait(reply_to_parent, node_parent_socket);
+                zmq_close(node_parent_socket);
+                zmq_ctx_destroy(node_parent_context);
+                exit(3);
+            }
+            if (reply_right.action == success && reply_left.action == success) {
+                auto *reply_to_parent = new msg_t({success, token.parent_id, node_id});
+                my_zmq::send_msg_no_wait(reply_to_parent, node_parent_socket);
+                zmq_close(left.second);
+                zmq_ctx_destroy(left.first);
+                left.first = left.second = nullptr;
+                left_id = -1;
+                has_left = false;
+                zmq_close(right.second);
+                zmq_ctx_destroy(right.first);
+                right.first = right.second = nullptr;
+                right_id = -1;
+                has_right = false;
+                zmq_close(node_parent_socket);
+                zmq_ctx_destroy(node_parent_context);
+                exit(3);
             }
         }
     }

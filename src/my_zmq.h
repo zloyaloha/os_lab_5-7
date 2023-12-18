@@ -7,21 +7,26 @@
 #include <string>
 #include <zmq.h>
 #include <random>
-#include <errno.h>
 #include <iostream>
+#include <sys/wait.h>
+#include <sstream>
+#include <algorithm>
+
+
 enum actions_t {
-  fail = 0,
-  success = 1,
-  create = 2,
-  destroy = 4,
-  ping = 5,
-  exec_check = 6,
-  exec_add = 7
+    fail = 0,
+    success = 1,
+    create = 2,
+    destroy = 4,
+    ping = 5,
+    exec_check = 6,
+    exec_add = 7,
+    destroy_child = 8
 };
 
 const char *NODE_EXECUTABLE_NAME = "calc.exe";
 const int PORT_BASE = 2000;
-const int WAIT_TIME = 1000;
+const int WAIT_TIME = 5000;
 const char SENTINEL = '$';
 
 struct msg_t {
@@ -162,7 +167,7 @@ namespace my_zmq {
     bool send_receive_wait(T *token_send, T &token_reply, void *socket) {
         if (send_msg_wait(token_send, socket)) {
             if (receive_msg_wait(token_reply, socket)) {
-            return true;
+                return true;
             }
         }
         return false;
